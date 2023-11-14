@@ -34,18 +34,24 @@ func test_covert_1{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}() -> () {
     return ();
 }
 
-@view
-func test_covert_random{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(rand_int: felt) -> () {
-    alloc_locals;
+@external
+func setup_covert_random() {
     %{
-        assume(ids.rand_int >= 0)
-        assume(ids.rand_int < 2 ** 256 - 1)
+        given(
+            rand_felt = strategy.felts()
+        )
     %}
+    return ();
+}
+
+@view
+func test_covert_random{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}(rand_felt: felt) -> () {
+    alloc_locals;
     let (array: felt*) = alloc();
-    %{ segments.write_arg(ids.array, [ids.rand_int]) %}
+    %{ segments.write_arg(ids.array, [ids.rand_felt]) %}
     local input: IntsSequence = IntsSequence(array, 1, 1);
     let (local out: Uint256) = ints_to_uint256(ints=input);
-    assert out = Uint256(rand_int, 0);
+    assert out = Uint256(rand_felt, 0);
     return ();
 }
 
@@ -56,12 +62,13 @@ func test_covert_out_of_bound{range_check_ptr, bitwise_ptr: BitwiseBuiltin*}() -
     local num;
     %{
         from random import randint
-        ids.num = randint(2**256, 2**512)
-        segments.write_arg(ids.array, [ids.num])
+        num = randint(2**256, 2**512)
+        segments.write_arg(ids.array, [num])
+        ids.num = num
     %}
     local input: IntsSequence = IntsSequence(array, 1, 1);
     %{ expect_revert() %}
     let (local out: Uint256) = ints_to_uint256(ints=input);
-    assert out = Uint256(num, 0);
+    %{ assert ids.out.low == num %}
     return ();
 }
